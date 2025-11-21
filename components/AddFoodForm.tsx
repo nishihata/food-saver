@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { FoodCategory, FoodItem } from '@/types/food';
 import { Plus } from 'lucide-react';
+import { CameraCapture } from './CameraCapture';
+import { OCRResult } from '@/lib/ocr';
 
 interface AddFoodFormProps {
   onAdd: (item: FoodItem) => void;
@@ -34,9 +36,32 @@ export const AddFoodForm = ({ onAdd }: AddFoodFormProps) => {
     setNote('');
   };
 
+  const handleOCRResult = (result: OCRResult) => {
+    // 消費期限が認識できた場合は自動入力
+    if (result.expirationDate) {
+      setExpirationDate(result.expirationDate);
+    }
+
+    // 商品名が認識できた場合は自動入力（既存の値がない場合のみ）
+    if (result.productName && !name) {
+      setName(result.productName);
+    }
+
+    // 認識結果をメモ欄に追加（デバッグ用）
+    if (result.text) {
+      setNote((prev) => {
+        const newNote = `[認識結果]\n${result.text}`;
+        return prev ? `${prev}\n\n${newNote}` : newNote;
+      });
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
       <h2 className="text-lg font-semibold text-gray-900">食品を追加</h2>
+
+      {/* カメラボタン */}
+      <CameraCapture onResult={handleOCRResult} />
 
       <div>
         <label htmlFor="name" className="block text-sm font-medium text-gray-700">
