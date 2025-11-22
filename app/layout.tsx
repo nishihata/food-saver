@@ -15,6 +15,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Food Saver",
   description: "食品ロスを減らすための消費期限管理アプリ",
+  manifest: "/manifest.json",
+  icons: {
+    apple: "/icon-512.png",
+  },
 };
 
 export default function RootLayout({
