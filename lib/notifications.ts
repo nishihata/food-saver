@@ -62,14 +62,14 @@ export const subscribeToPush = async (): Promise<PushSubscription | null> => {
 /**
  * サブスクリプションをサーバーに保存
  */
-export const saveSubscription = async (subscription: PushSubscription): Promise<boolean> => {
+export const saveSubscription = async (subscription: PushSubscription, userId: string): Promise<boolean> => {
   try {
     const response = await fetch('/api/subscribe', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(subscription),
+      body: JSON.stringify({ subscription, userId }),
     });
 
     return response.ok;
@@ -84,6 +84,17 @@ export const saveSubscription = async (subscription: PushSubscription): Promise<
  */
 export const setupPushNotifications = async (): Promise<boolean> => {
   try {
+    // Supabaseクライアントをインポート
+    const { supabase } = await import('@/lib/supabase');
+
+    // ユーザーIDを取得
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      console.error('No user session');
+      return false;
+    }
+    const userId = session.user.id;
+
     // 1. Service Workerを登録
     const registration = await registerServiceWorker();
     if (!registration) return false;
@@ -100,7 +111,7 @@ export const setupPushNotifications = async (): Promise<boolean> => {
     if (!subscription) return false;
 
     // 4. サブスクリプションをサーバーに保存
-    const saved = await saveSubscription(subscription);
+    const saved = await saveSubscription(subscription, userId);
     if (!saved) {
       console.error('Failed to save subscription to server');
       return false;

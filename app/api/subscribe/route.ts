@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// サーバー側用のSupabaseクライアント
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export async function POST(request: NextRequest) {
   try {
-    const subscription = await request.json();
+    const body = await request.json();
+    const { subscription, userId } = body;
 
-    // 匿名ユーザーのIDを取得
-    const { data: { session } } = await supabase.auth.getSession();
-
-    if (!session?.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!userId || !subscription) {
+      return NextResponse.json({ error: 'Missing userId or subscription' }, { status: 400 });
     }
-
-    const userId = session.user.id;
 
     // サブスクリプションをSupabaseに保存
     const { error } = await supabase
