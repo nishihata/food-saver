@@ -25,16 +25,27 @@ export async function POST(request: NextRequest) {
 
 1. 商品名
 2. 消費期限または賞味期限（YYYY-MM-DD形式で）
+3. 食品のカテゴリー（以下のいずれか）:
+   - 野菜
+   - 肉・魚
+   - 乳製品
+   - 調味料
+   - 飲料
+   - その他
 
 以下のJSON形式で回答してください：
 {
   "productName": "商品名",
   "expirationDate": "YYYY-MM-DD",
+  "category": "カテゴリー名",
   "rawText": "画像から読み取った全テキスト"
 }
 
-日付が複数ある場合は、最も遅い日付を選んでください。
-日付が見つからない場合は、expirationDateをnullにしてください。
+注意事項：
+- 日付が複数ある場合は、最も遅い日付を選んでください
+- 日付が見つからない場合は、expirationDateをnullにしてください
+- カテゴリーは商品名や画像から推測してください（例：牛乳→乳製品、トマト→野菜）
+- カテゴリーが不明な場合は「その他」にしてください
 `;
 
     const result = await model.generateContent([
@@ -62,6 +73,7 @@ export async function POST(request: NextRequest) {
       text: parsed.rawText || text,
       expirationDate: parsed.expirationDate || undefined,
       productName: parsed.productName || undefined,
+      category: parsed.category || undefined,
     });
   } catch (error) {
     console.error('OCR処理に失敗しました', error);

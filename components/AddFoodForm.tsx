@@ -36,6 +36,7 @@ export const AddFoodForm = ({ onAdd }: AddFoodFormProps) => {
     setNote('');
   };
 
+
   const handleOCRResult = (result: OCRResult) => {
     // 消費期限が認識できた場合は自動入力
     if (result.expirationDate) {
@@ -45,6 +46,11 @@ export const AddFoodForm = ({ onAdd }: AddFoodFormProps) => {
     // 商品名が認識できた場合は自動入力（既存の値がない場合のみ）
     if (result.productName && !name) {
       setName(result.productName);
+    }
+
+    // カテゴリーが認識できた場合は自動入力
+    if (result.category) {
+      setCategory(result.category as FoodCategory);
     }
 
     // 認識結果をメモ欄に追加（デバッグ用）

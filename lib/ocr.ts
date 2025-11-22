@@ -2,6 +2,7 @@ export interface OCRResult {
   text: string;
   expirationDate?: string;
   productName?: string;
+  category?: string;
 }
 
 /**
