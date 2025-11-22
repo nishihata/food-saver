@@ -5,7 +5,7 @@ import { CameraCapture } from './CameraCapture';
 import { OCRResult } from '@/lib/ocr';
 
 interface AddFoodFormProps {
-  onAdd: (item: FoodItem) => void;
+  onAdd: (item: Omit<FoodItem, 'id' | 'createdAt'>) => void;
 }
 
 export const AddFoodForm = ({ onAdd }: AddFoodFormProps) => {
@@ -18,16 +18,12 @@ export const AddFoodForm = ({ onAdd }: AddFoodFormProps) => {
     e.preventDefault();
     if (!name || !expirationDate) return;
 
-    const newItem: FoodItem = {
-      id: crypto.randomUUID(),
+    onAdd({
       name,
       expirationDate,
       category,
       note,
-      createdAt: Date.now(),
-    };
-
-    onAdd(newItem);
+    });
 
     // Reset form
     setName('');

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { FoodItem } from '@/types/food';
-import { getFoodItems, saveFoodItems } from '@/lib/storage';
+import { getFoodItems, addFoodItem, removeFoodItem, migrateFromLocalStorage } from '@/lib/storage';
 import { FoodItemCard } from '@/components/FoodItemCard';
 import { AddFoodForm } from '@/components/AddFoodForm';
 
@@ -11,23 +11,34 @@ export default function Home() {
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
-    setItems(getFoodItems());
-    setIsLoaded(true);
+    const loadData = async () => {
+      // LocalStorageからSupabaseへデータ移行
+      await migrateFromLocalStorage();
+
+      // データを取得
+      const data = await getFoodItems();
+      setItems(data);
+      setIsLoaded(true);
+    };
+
+    loadData();
   }, []);
 
-  const handleAdd = (newItem: FoodItem) => {
-    const updatedItems = [...items, newItem];
-    // Sort by date
-    updatedItems.sort((a, b) => a.expirationDate.localeCompare(b.expirationDate));
-    setItems(updatedItems);
-    saveFoodItems(updatedItems);
+  const handleAdd = async (newItem: Omit<FoodItem, 'id' | 'createdAt'>) => {
+    const added = await addFoodItem(newItem);
+    if (added) {
+      const data = await getFoodItems();
+      setItems(data);
+    }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('本当に削除しますか？')) return;
-    const updatedItems = items.filter((item) => item.id !== id);
-    setItems(updatedItems);
-    saveFoodItems(updatedItems);
+    const success = await removeFoodItem(id);
+    if (success) {
+      const data = await getFoodItems();
+      setItems(data);
+    }
   };
 
   if (!isLoaded) {
