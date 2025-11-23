@@ -11,11 +11,16 @@ webpush.setVapidDetails(
 
 export async function GET(request: NextRequest) {
   try {
+    console.log('🔔 Cron job started');
+
     // Vercel Cron Jobsの認証チェック
     const authHeader = request.headers.get('authorization');
     if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      console.log('❌ Unauthorized: Invalid CRON_SECRET');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    console.log('✅ Authentication passed');
 
     // 今日と明日の日付を取得
     const today = new Date();
@@ -28,6 +33,8 @@ export async function GET(request: NextRequest) {
     const tomorrowStr = tomorrow.toISOString().split('T')[0];
     const threeDaysStr = threeDays.toISOString().split('T')[0];
 
+    console.log('📅 Date range:', { todayStr, tomorrowStr, threeDaysStr });
+
     // 期限が近い食品を取得（今日、明日、3日以内）
     const { data: expiringItems, error: itemsError } = await supabase
       .from('food_items')
@@ -36,9 +43,15 @@ export async function GET(request: NextRequest) {
       .gte('expiration_date', todayStr)
       .order('expiration_date', { ascending: true });
 
-    if (itemsError) throw itemsError;
+    if (itemsError) {
+      console.log('❌ Error fetching items:', itemsError);
+      throw itemsError;
+    }
+
+    console.log(`📦 Found ${expiringItems?.length || 0} expiring items:`, expiringItems);
 
     if (!expiringItems || expiringItems.length === 0) {
+      console.log('ℹ️ No expiring items found');
       return NextResponse.json({ message: 'No expiring items' });
     }
 
@@ -51,9 +64,13 @@ export async function GET(request: NextRequest) {
       return acc;
     }, {} as Record<string, typeof expiringItems>);
 
+    console.log(`👥 Grouped into ${Object.keys(userItems).length} users`);
+
     // 各ユーザーに通知を送信
     const notifications = [];
     for (const [userId, items] of Object.entries(userItems)) {
+      console.log(`\n👤 Processing user: ${userId}`);
+
       // ユーザーのサブスクリプションを取得
       const { data: subscription, error: subError } = await supabase
         .from('push_subscriptions')
@@ -62,22 +79,27 @@ export async function GET(request: NextRequest) {
         .single();
 
       if (subError || !subscription) {
-        console.log(`No subscription for user ${userId}`);
+        console.log(`❌ No subscription for user ${userId}:`, subError);
         continue;
       }
+
+      console.log(`✅ Found subscription for user ${userId}`);
 
       // 通知メッセージを作成（今日が期限のもののみ）
       const todayItems = items.filter(i => i.expiration_date === todayStr);
 
       if (todayItems.length === 0) {
-        console.log(`No items expiring today for user ${userId}`);
+        console.log(`ℹ️ No items expiring today for user ${userId}`);
         continue;
       }
+
+      console.log(`📋 ${todayItems.length} items expiring today:`, todayItems.map(i => i.name));
 
       const message = `【今日が期限】\n${todayItems.map(i => `- ${i.name}`).join('\n')}`;
 
       // プッシュ通知を送信
       try {
+        console.log(`📤 Sending notification to user ${userId}...`);
         await webpush.sendNotification(
           subscription.subscription,
           JSON.stringify({
@@ -86,20 +108,24 @@ export async function GET(request: NextRequest) {
             url: '/',
           })
         );
+        console.log(`✅ Notification sent successfully to user ${userId}`);
         notifications.push({ userId, itemCount: todayItems.length, success: true });
       } catch (error) {
-        console.error(`Failed to send notification to user ${userId}:`, error);
+        console.error(`❌ Failed to send notification to user ${userId}:`, error);
         notifications.push({ userId, itemCount: todayItems.length, success: false, error: String(error) });
       }
     }
 
-    return NextResponse.json({
+    const response = {
       message: 'Notifications sent',
       totalItems: expiringItems.length,
       notifications,
-    });
+    };
+
+    console.log('🎉 Cron job completed:', response);
+    return NextResponse.json(response);
   } catch (error) {
-    console.error('Cron job error:', error);
+    console.error('💥 Cron job error:', error);
     return NextResponse.json({ error: String(error) }, { status: 500 });
   }
 }
